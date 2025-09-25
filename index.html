@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple XLIFF Editor</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f9; }
+        .container { max-width: 1200px; margin: auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #333; }
+        .controls { display: flex; justify-content: space-between; margin-bottom: 20px; align-items: center; }
+        .controls input[type="file"] { padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        .controls button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.3s; }
+        .controls button:hover { background-color: #0056b3; }
+        .controls button:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        .editor-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .editor-table th, .editor-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .editor-table th { background-color: #f2f2f2; color: #333; position: sticky; top: 0; }
+        .editor-table td[contenteditable="true"] { background-color: #fffacd; cursor: text; }
+        .editor-table td:first-child { background-color: #f9f9f9; } /* Source */
+        .editor-table td:nth-child(3) { color: #666; font-style: italic; font-size: 0.9em; max-width: 300px; overflow-wrap: break-word; } /* Note */
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>XLIFF Simple Editor (Client-Side)</h1>
+
+        <div class="controls">
+            <input type="file" id="xliffFile" accept=".xlf,.xliff">
+            <button id="saveButton" onclick="saveEditedXLIFF()" disabled>Download Edited XLIFF</button>
+        </div>
+
+        <div style="max-height: 70vh; overflow-y: auto;">
+            <table class="editor-table" id="xliffTable">
+                <thead>
+                    <tr>
+                        <th style="width: 35%;">Source (Read-Only)</th>
+                        <th style="width: 35%;">Target (Editable)</th>
+                        <th style="width: 30%;">Note</th>
+                    </tr>
+                </thead>
+                <tbody id="xliffTableBody">
+                    <tr><td colspan="3" style="text-align: center;">Upload an XLIFF file to begin editing.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Global variable to store the original DOM structure for regeneration
+        let originalDom = null;
+        let xliffVersion = null; // To handle version differences (1.x or 2.x)
+
+        document.getElementById('xliffFile').addEventListener('change', loadXLIFF);
+
+        function loadXLIFF(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const content = e.target.result;
+                    const parser = new DOMParser();
+                    originalDom = parser.parseFromString(content, "application/xml");
+
+                    // Check for XML parsing errors
+                    if (originalDom.getElementsByTagName("parsererror").length) {
+                        alert("Error parsing XML. The file may be corrupt or not valid XLIFF.");
+                        return;
+                    }
+
+                    // Determine XLIFF version based on root element namespace
+                    const rootEl = originalDom.documentElement;
+                    const ns = rootEl.getAttribute('xmlns');
+                    if (ns && ns.includes('xliff.oasis-open.org/v2')) {
+                        xliffVersion = '2';
+                    } else if (rootEl.tagName.toLowerCase() === 'xliff') {
+                        xliffVersion = '1';
+                    } else {
+                        alert("File loaded, but could not determine XLIFF version (not v1 or v2). Displaying best effort.");
+                        xliffVersion = 'unknown';
+                    }
+
+                    displayXLIFF(originalDom);
+                    document.getElementById('saveButton').disabled = false;
+
+                } catch (error) {
+                    console.error(error);
+                    alert("An error occurred during file reading or parsing.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function getTranslatableUnits(dom) {
+            if (xliffVersion === '2') {
+                // XLIFF 2.x: <unit>
+                return Array.from(dom.querySelectorAll('unit, segment')); 
+            } else {
+                // XLIFF 1.x: <trans-unit>
+                return Array.from(dom.getElementsByTagName('trans-unit'));
+            }
+        }
+
+        function displayXLIFF(dom) {
+            const tbody = document.getElementById('xliffTableBody');
+            tbody.innerHTML = ''; // Clear existing content
+            
+            const units = getTranslatableUnits(dom);
+
+            if (units.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No translatable units found.</td></tr>';
+                return;
+            }
+
+            units.forEach((unit, index) => {
+                let sourceText, targetText, noteText, targetNode;
+                
+                if (xliffVersion === '2') {
+                    // XLIFF 2.x structure often has <segment> within <unit>
+                    const segment = unit.querySelector('segment') || unit;
+                    sourceText = (segment.querySelector('source') || segment).textContent;
+                    targetNode = segment.querySelector('target');
+                    noteText = (unit.querySelector('note') || { textContent: '' }).textContent;
+                } else {
+                    // XLIFF 1.x structure
+                    sourceText = (unit.querySelector('source') || { textContent: '' }).textContent;
+                    targetNode = unit.querySelector('target');
+                    noteText = (unit.querySelector('note') || { textContent: '' }).textContent;
+                }
+
+                targetText = targetNode ? targetNode.textContent : '';
+
+                const row = tbody.insertRow();
+                
+                // Source Cell (Read-Only)
+                const sourceCell = row.insertCell();
+                sourceCell.textContent = sourceText;
+
+                // Target Cell (Editable)
+                const targetCell = row.insertCell();
+                targetCell.textContent = targetText;
+                // Add the attribute for in-place editing
+                if (targetNode) {
+                    targetCell.setAttribute('contenteditable', 'true');
+                    // Store a reference to the actual target node in the DOM for saving
+                    targetCell.dataset.unitIndex = index;
+                } else {
+                    targetCell.textContent = "[MISSING TARGET TAG]";
+                }
+                
+                // Note Cell (Read-Only)
+                const noteCell = row.insertCell();
+                noteCell.textContent = noteText;
+            });
+        }
+
+        function saveEditedXLIFF() {
+            if (!originalDom) {
+                alert("No file loaded.");
+                return;
+            }
+
+            const units = getTranslatableUnits(originalDom);
+            const editableCells = document.querySelectorAll('#xliffTableBody td[contenteditable="true"]');
+
+            // 1. Update the original DOM structure with edited text
+            editableCells.forEach(cell => {
+                const index = parseInt(cell.dataset.unitIndex, 10);
+                const newText = cell.textContent;
+
+                const unit = units[index];
+                
+                let targetNode;
+                if (xliffVersion === '2') {
+                    const segment = unit.querySelector('segment') || unit;
+                    targetNode = segment.querySelector('target');
+                } else {
+                    targetNode = unit.querySelector('target');
+                }
+
+                if (targetNode) {
+                    // Clear and update the target tag in the stored DOM
+                    while (targetNode.firstChild) {
+                        targetNode.removeChild(targetNode.firstChild);
+                    }
+                    targetNode.appendChild(originalDom.createTextNode(newText));
+                }
+            });
+
+            // 2. Serialize the updated DOM back into an XML string
+            const serializer = new XMLSerializer();
+            const newXliffString = serializer.serializeToString(originalDom);
+
+            // 3. Create a Blob and trigger the download
+            const blob = new Blob([newXliffString], { type: 'application/xliff+xml' });
+            const fileName = document.getElementById('xliffFile').files[0].name;
+            const newFileName = 'edited_' + fileName;
+
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = newFileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            alert(`File successfully saved as "${newFileName}"`);
+        }
+    </script>
+
+</body>
+</html>
