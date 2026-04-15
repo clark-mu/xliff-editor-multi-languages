@@ -12,7 +12,7 @@ Adding multi-language function, thank you @mrmadhav and Deepseek
 
 See it in action right now!
 
-🔗 **[Launch the Simple XLIFF Editor](https://mrmadhav.github.io/xliff-editor/)**
+🔗 **[Launch the Simple XLIFF Editor - Multi-languages](https://clark-mu.github.io/xliff-editor-multi-languages/)**
 
 ---
 
