@@ -1,8 +1,10 @@
-# Simple XLIFF Editor
+# Simple XLIFF Editor - Multi-languages
 
 A dead-simple, **client-side-only** web application for viewing, editing, and saving XLIFF files of all versions (1.x and 2.x) in a familiar, easy-to-use tabular format.
 
 This tool is built entirely with **HTML, CSS, and vanilla JavaScript**, meaning **no data ever leaves your browser**. It's fast, private, and requires zero server-side setup.
+
+Adding multi-language function, thank you @mrmadhav and Deepseek
 
 ---
 
