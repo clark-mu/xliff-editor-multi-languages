@@ -3,57 +3,229 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple XLIFF Editor</title>
+    <title>简易XLIFF编辑器 · Simple XLIFF Editor</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f9; }
-        .container { max-width: 1200px; margin: auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        h1 { text-align: center; color: #333; }
-        .controls { display: flex; justify-content: space-between; margin-bottom: 20px; align-items: center; }
-        .controls input[type="file"] { padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
-        .controls button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.3s; }
-        .controls button:hover { background-color: #0056b3; }
-        .controls button:disabled { background-color: #ccc; cursor: not-allowed; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 20px; background-color: #f4f4f9; }
+        .container { max-width: 1300px; margin: auto; padding: 20px; background: white; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.08); }
+        h1 { text-align: center; color: #1e2b3a; margin-bottom: 10px; }
+        .subtitle { text-align: center; color: #5e6f7e; margin-top: -5px; margin-bottom: 25px; font-size: 0.95rem; }
 
-        .editor-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        .editor-table th, .editor-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        .editor-table th { background-color: #f2f2f2; color: #333; position: sticky; top: 0; }
-        .editor-table td[contenteditable="true"] { background-color: #fffacd; cursor: text; }
-        .editor-table td:first-child { background-color: #f9f9f9; } /* Source */
-        .editor-table td:nth-child(3) { color: #666; font-style: italic; font-size: 0.9em; max-width: 300px; overflow-wrap: break-word; } /* Note */
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+        .file-actions { display: flex; gap: 15px; align-items: center; }
+        .lang-switcher { display: flex; gap: 8px; background: #eef2f6; padding: 4px; border-radius: 30px; }
+        .lang-btn { padding: 6px 18px; border: none; background: transparent; border-radius: 30px; font-weight: 500; cursor: pointer; transition: all 0.2s; color: #2c3e50; }
+        .lang-btn.active { background: #007bff; color: white; box-shadow: 0 2px 6px rgba(0,123,255,0.3); }
+        .lang-btn:hover:not(.active) { background: rgba(0,123,255,0.1); }
+
+        .controls { display: flex; gap: 12px; align-items: center; }
+        .controls input[type="file"] { padding: 8px 12px; border: 1px solid #ccd7e4; border-radius: 20px; background: white; }
+        .controls button { padding: 10px 24px; background-color: #007bff; color: white; border: none; border-radius: 30px; font-weight: 600; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 6px rgba(0,123,255,0.2); }
+        .controls button:hover { background-color: #0056b3; transform: scale(1.02); }
+        .controls button:disabled { background-color: #b0c4de; box-shadow: none; cursor: not-allowed; transform: none; }
+
+        .editor-table { width: 100%; border-collapse: collapse; margin-top: 20px; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .editor-table th, .editor-table td { border: 1px solid #e2e8f0; padding: 12px 10px; text-align: left; vertical-align: top; }
+        .editor-table th { background-color: #f1f5f9; color: #1e293b; font-weight: 600; position: sticky; top: 0; z-index: 10; }
+        .editor-table td[contenteditable="true"] { background-color: #fff9e6; cursor: text; border-left: 3px solid #fbbf24; }
+        .editor-table td[contenteditable="true"]:focus { outline: 2px solid #3b82f6; background-color: #fffbeb; }
+        .editor-table td:first-child { background-color: #fafcff; color: #1e293b; }
+        .editor-table td:nth-child(3) { color: #475569; font-style: italic; font-size: 0.9em; max-width: 280px; overflow-wrap: break-word; }
+
+        .footer-note { margin-top: 16px; font-size: 0.8rem; color: #6b7a8a; text-align: center; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>XLIFF Simple Editor (Client-Side)</h1>
+<div class="container">
+    <h1 id="mainTitle">简易XLIFF编辑器</h1>
+    <div class="subtitle">Simple XLIFF Editor · 纯前端 · 支持 XLIFF 1.x / 2.x</div>
 
-        <div class="controls">
-            <input type="file" id="xliffFile" accept=".xlf,.xliff">
-            <button id="saveButton" onclick="saveEditedXLIFF()" disabled>Download Edited XLIFF</button>
+    <div class="top-bar">
+        <div class="file-actions">
+            <input type="file" id="xliffFile" accept=".xlf,.xliff,.xml">
+            <button id="saveButton" onclick="saveEditedXLIFF()" disabled>⬇ 下载编辑后的XLIFF</button>
         </div>
-
-        <div style="max-height: 70vh; overflow-y: auto;">
-            <table class="editor-table" id="xliffTable">
-                <thead>
-                    <tr>
-                        <th style="width: 35%;">Source (Read-Only)</th>
-                        <th style="width: 35%;">Target (Editable)</th>
-                        <th style="width: 30%;">Note</th>
-                    </tr>
-                </thead>
-                <tbody id="xliffTableBody">
-                    <tr><td colspan="3" style="text-align: center;">Upload an XLIFF file to begin editing.</td></tr>
-                </tbody>
-            </table>
+        <div class="lang-switcher" id="langSwitcher">
+            <button class="lang-btn" data-lang="zh">中文</button>
+            <button class="lang-btn" data-lang="en">English</button>
         </div>
     </div>
 
-    <script>
-        // Global variable to store the original DOM structure for regeneration
-        let originalDom = null;
-        let xliffVersion = null; // To handle version differences (1.x or 2.x)
+    <div style="max-height: 70vh; overflow-y: auto; border-radius: 8px;">
+        <table class="editor-table" id="xliffTable">
+            <thead>
+                <tr>
+                    <th style="width: 35%;" id="thSource">源文本 (只读)</th>
+                    <th style="width: 35%;" id="thTarget">译文 (可编辑)</th>
+                    <th style="width: 30%;" id="thNote">备注</th>
+                </tr>
+            </thead>
+            <tbody id="xliffTableBody">
+                <!-- 占位内容会通过JS根据语言动态填充 -->
+            </tbody>
+        </table>
+    </div>
+    <div class="footer-note">
+        <span id="hintText">点击「上传」选择 .xlf / .xliff 文件，直接编辑译文，然后下载</span>
+    </div>
+</div>
 
-        document.getElementById('xliffFile').addEventListener('change', loadXLIFF);
+<script>
+    (function(){
+        // ---------- 国际化资源 ----------
+        const i18n = {
+            en: {
+                title: 'Simple XLIFF Editor',
+                subtitle: 'Client‑side · XLIFF 1.x / 2.x support',
+                uploadPrompt: 'Upload an XLIFF file to begin editing.',
+                downloadBtn: '⬇ Download Edited XLIFF',
+                sourceHeader: 'Source (Read-Only)',
+                targetHeader: 'Target (Editable)',
+                noteHeader: 'Note',
+                noUnits: 'No translatable units found.',
+                missingTarget: '[MISSING TARGET TAG]',
+                parseError: 'Error parsing XML. The file may be corrupt or not valid XLIFF.',
+                unknownVersion: 'File loaded, but could not determine XLIFF version (not v1 or v2). Displaying best effort.',
+                saveSuccess: '✅ File successfully saved as',
+                errorOccurred: 'An error occurred during file reading or parsing.',
+                noFileLoaded: 'No file loaded.',
+                footerHint: 'Click "Upload" to select an .xlf/.xliff file, edit translations directly, then download.',
+                emptyTablePlaceholder: 'Upload an XLIFF file to begin editing.'
+            },
+            zh: {
+                title: '简易XLIFF编辑器',
+                subtitle: '纯前端 · 支持 XLIFF 1.x / 2.x',
+                uploadPrompt: '上传 XLIFF 文件以开始编辑。',
+                downloadBtn: '⬇ 下载编辑后的 XLIFF',
+                sourceHeader: '源文本（只读）',
+                targetHeader: '译文（可编辑）',
+                noteHeader: '备注',
+                noUnits: '未找到可翻译单元。',
+                missingTarget: '[缺少目标标签]',
+                parseError: 'XML 解析错误。文件可能已损坏或不是有效的 XLIFF。',
+                unknownVersion: '文件已加载，但无法确定 XLIFF 版本（非 v1 或 v2）。尽力显示。',
+                saveSuccess: '✅ 文件成功保存为',
+                errorOccurred: '文件读取或解析时发生错误。',
+                noFileLoaded: '未加载文件。',
+                footerHint: '点击「上传」选择 .xlf / .xliff 文件，直接编辑译文，然后下载',
+                emptyTablePlaceholder: '上传 XLIFF 文件以开始编辑。'
+            }
+        };
+
+        // 当前语言 (默认会根据浏览器设置，后续可手动切换)
+        let currentLang = 'zh'; 
+
+        // 翻译函数
+        function t(key, vars = {}) {
+            const langPack = i18n[currentLang] || i18n['en'];
+            let text = langPack[key] || i18n['en'][key] || key;
+            // 简单插值 (例如文件名)
+            Object.entries(vars).forEach(([k, v]) => {
+                text = text.replace(new RegExp(`{${k}}`, 'g'), v);
+            });
+            return text;
+        }
+
+        // ---------- 全局状态 ----------
+        let originalDom = null;
+        let xliffVersion = null; 
+
+        // DOM 元素
+        const fileInput = document.getElementById('xliffFile');
+        const saveBtn = document.getElementById('saveButton');
+        const tbody = document.getElementById('xliffTableBody');
+        const thSource = document.getElementById('thSource');
+        const thTarget = document.getElementById('thTarget');
+        const thNote = document.getElementById('thNote');
+        const mainTitle = document.getElementById('mainTitle');
+        const subtitleEl = document.querySelector('.subtitle');
+        const footerHint = document.getElementById('hintText');
+        const langBtns = document.querySelectorAll('.lang-btn');
+
+        // ---------- 应用语言 (更新所有静态UI文本，以及占位内容) ----------
+        function applyLanguage(lang) {
+            currentLang = lang;
+
+            // 更新标题、按钮、表头、底部提示
+            document.title = t('title');
+            mainTitle.textContent = t('title');
+            if (subtitleEl) subtitleEl.textContent = t('subtitle');
+            thSource.textContent = t('sourceHeader');
+            thTarget.textContent = t('targetHeader');
+            thNote.textContent = t('noteHeader');
+            saveBtn.textContent = t('downloadBtn');
+            footerHint.textContent = t('footerHint');
+
+            // 更新语言按钮激活样式
+            langBtns.forEach(btn => {
+                const btnLang = btn.getAttribute('data-lang');
+                if (btnLang === lang) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            // 处理表格占位符 (当没有加载文件时，显示语言对应的提示)
+            if (!originalDom) {
+                renderEmptyPlaceholder();
+            } else {
+                // 如果已经加载了文件，但表格内可能显示“无单元”等，需不需要更新？
+                // 我们可以在 displayXLIFF 时已经使用当前语言，但若切换语言时originalDom存在，
+                // 我们不希望刷新表格丢失编辑。因此只检查表格内是否只有一行且为占位消息(无单元情况)
+                const rows = tbody.querySelectorAll('tr');
+                if (rows.length === 1) {
+                    const firstCell = rows[0].querySelector('td');
+                    if (firstCell && firstCell.colSpan === 3) {
+                        // 可能是 "No translatable units found" 或 "未找到可翻译单元"
+                        const units = getTranslatableUnits(originalDom);
+                        if (units.length === 0) {
+                            // 确认是无单元状态，更新文本
+                            firstCell.textContent = t('noUnits');
+                        } else {
+                            // 有单元但只有一行? 极少情况，不处理。
+                        }
+                    }
+                }
+            }
+        }
+
+        // 未加载文件时，渲染占位符 (使用当前语言)
+        function renderEmptyPlaceholder() {
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 30px;">${t('emptyTablePlaceholder')}</td></tr>`;
+        }
+
+        // 初始化时调用一次，设置占位符
+        renderEmptyPlaceholder();
+
+        // ---------- 检测浏览器语言并设置默认语言 ----------
+        function detectBrowserLanguage() {
+            const browserLang = navigator.language || navigator.userLanguage || 'en';
+            // 如果浏览器语言以 zh 开头 (zh-CN, zh-TW, zh-HK 等) 则使用中文，否则英文
+            return browserLang.toLowerCase().startsWith('zh') ? 'zh' : 'en';
+        }
+
+        // 手动切换语言
+        function switchLanguage(lang) {
+            applyLanguage(lang);
+            // 可选的: 可以存储到 localStorage，但为了简洁，不强制
+        }
+
+        // 绑定语言切换事件
+        langBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const lang = btn.getAttribute('data-lang');
+                switchLanguage(lang);
+            });
+        });
+
+        // 根据浏览器初始化语言
+        const initialLang = detectBrowserLanguage();
+        switchLanguage(initialLang);
+
+        // ---------- XLIFF 核心逻辑 (几乎不变，但将硬编码文本替换为 t() ) ----------
+
+        fileInput.addEventListener('change', loadXLIFF);
 
         function loadXLIFF(event) {
             const file = event.target.files[0];
@@ -66,13 +238,11 @@
                     const parser = new DOMParser();
                     originalDom = parser.parseFromString(content, "application/xml");
 
-                    // Check for XML parsing errors
                     if (originalDom.getElementsByTagName("parsererror").length) {
-                        alert("Error parsing XML. The file may be corrupt or not valid XLIFF.");
+                        alert(t('parseError'));
                         return;
                     }
 
-                    // Determine XLIFF version based on root element namespace
                     const rootEl = originalDom.documentElement;
                     const ns = rootEl.getAttribute('xmlns');
                     if (ns && ns.includes('xliff.oasis-open.org/v2')) {
@@ -80,16 +250,16 @@
                     } else if (rootEl.tagName.toLowerCase() === 'xliff') {
                         xliffVersion = '1';
                     } else {
-                        alert("File loaded, but could not determine XLIFF version (not v1 or v2). Displaying best effort.");
+                        alert(t('unknownVersion'));
                         xliffVersion = 'unknown';
                     }
 
                     displayXLIFF(originalDom);
-                    document.getElementById('saveButton').disabled = false;
+                    saveBtn.disabled = false;
 
                 } catch (error) {
                     console.error(error);
-                    alert("An error occurred during file reading or parsing.");
+                    alert(t('errorOccurred'));
                 }
             };
             reader.readAsText(file);
@@ -97,36 +267,30 @@
 
         function getTranslatableUnits(dom) {
             if (xliffVersion === '2') {
-                // XLIFF 2.x: <unit>
-                return Array.from(dom.querySelectorAll('unit, segment')); 
+                return Array.from(dom.querySelectorAll('unit, segment'));
             } else {
-                // XLIFF 1.x: <trans-unit>
                 return Array.from(dom.getElementsByTagName('trans-unit'));
             }
         }
 
         function displayXLIFF(dom) {
-            const tbody = document.getElementById('xliffTableBody');
-            tbody.innerHTML = ''; // Clear existing content
-            
+            tbody.innerHTML = '';
             const units = getTranslatableUnits(dom);
 
             if (units.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No translatable units found.</td></tr>';
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 30px;">${t('noUnits')}</td></tr>`;
                 return;
             }
 
             units.forEach((unit, index) => {
                 let sourceText, targetText, noteText, targetNode;
-                
+
                 if (xliffVersion === '2') {
-                    // XLIFF 2.x structure often has <segment> within <unit>
                     const segment = unit.querySelector('segment') || unit;
                     sourceText = (segment.querySelector('source') || segment).textContent;
                     targetNode = segment.querySelector('target');
                     noteText = (unit.querySelector('note') || { textContent: '' }).textContent;
                 } else {
-                    // XLIFF 1.x structure
                     sourceText = (unit.querySelector('source') || { textContent: '' }).textContent;
                     targetNode = unit.querySelector('target');
                     noteText = (unit.querySelector('note') || { textContent: '' }).textContent;
@@ -135,24 +299,22 @@
                 targetText = targetNode ? targetNode.textContent : '';
 
                 const row = tbody.insertRow();
-                
-                // Source Cell (Read-Only)
+
+                // 源文本单元格 (只读)
                 const sourceCell = row.insertCell();
                 sourceCell.textContent = sourceText;
 
-                // Target Cell (Editable)
+                // 译文单元格 (可编辑)
                 const targetCell = row.insertCell();
-                targetCell.textContent = targetText;
-                // Add the attribute for in-place editing
                 if (targetNode) {
+                    targetCell.textContent = targetText;
                     targetCell.setAttribute('contenteditable', 'true');
-                    // Store a reference to the actual target node in the DOM for saving
                     targetCell.dataset.unitIndex = index;
                 } else {
-                    targetCell.textContent = "[MISSING TARGET TAG]";
+                    targetCell.textContent = t('missingTarget');
                 }
-                
-                // Note Cell (Read-Only)
+
+                // 备注单元格
                 const noteCell = row.insertCell();
                 noteCell.textContent = noteText;
             });
@@ -160,21 +322,20 @@
 
         function saveEditedXLIFF() {
             if (!originalDom) {
-                alert("No file loaded.");
+                alert(t('noFileLoaded'));
                 return;
             }
 
             const units = getTranslatableUnits(originalDom);
             const editableCells = document.querySelectorAll('#xliffTableBody td[contenteditable="true"]');
 
-            // 1. Update the original DOM structure with edited text
             editableCells.forEach(cell => {
                 const index = parseInt(cell.dataset.unitIndex, 10);
                 const newText = cell.textContent;
 
                 const unit = units[index];
-                
                 let targetNode;
+
                 if (xliffVersion === '2') {
                     const segment = unit.querySelector('segment') || unit;
                     targetNode = segment.querySelector('target');
@@ -183,7 +344,6 @@
                 }
 
                 if (targetNode) {
-                    // Clear and update the target tag in the stored DOM
                     while (targetNode.firstChild) {
                         targetNode.removeChild(targetNode.firstChild);
                     }
@@ -191,13 +351,11 @@
                 }
             });
 
-            // 2. Serialize the updated DOM back into an XML string
             const serializer = new XMLSerializer();
             const newXliffString = serializer.serializeToString(originalDom);
-
-            // 3. Create a Blob and trigger the download
             const blob = new Blob([newXliffString], { type: 'application/xliff+xml' });
-            const fileName = document.getElementById('xliffFile').files[0].name;
+            const originalFile = fileInput.files[0];
+            const fileName = originalFile ? originalFile.name : 'translation.xlf';
             const newFileName = 'edited_' + fileName;
 
             const a = document.createElement('a');
@@ -206,10 +364,25 @@
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            
-            alert(`File successfully saved as "${newFileName}"`);
-        }
-    </script>
 
+            alert(`${t('saveSuccess')} "${newFileName}"`);
+        }
+
+        // 如果切换语言时 originalDom 为空，占位符已经在 applyLanguage 中更新
+        // 但为了更稳健：当清空文件或重新上传时，都通过 displayXLIFF 处理。
+        // 额外处理：当用户点击上传同一文件或新文件，一切正常。
+
+        // 监听文件选择清空？不需要。
+
+        // 将 saveEditedXLIFF 挂载到 window 以便 onclick 调用 (已经存在)
+        window.saveEditedXLIFF = saveEditedXLIFF;
+
+        // 增强：如果用户通过清空input再重新上传，originalDom更新，displayXLIFF会用当前语言显示noUnits等。
+        // 一切符合预期。
+
+        // 细微优化：如果切换语言时表格内没有可翻译单元且显示了占位消息，更新其文本
+        // 已在 applyLanguage 中实现检测。
+    })();
+</script>
 </body>
 </html>
